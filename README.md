@@ -1,8 +1,15 @@
 # dns-chief
 
-## Usage
+## Todo
 
-### Importing from CloudFlare
+* [x] CloudFlare Support
+* [ ] Route53 Support
+
+## CloudFlare
+
+### Usage
+
+#### Importing from CloudFlare
 
 ``` bash
 export API_KEY={{ cloudflare token }}
@@ -10,7 +17,7 @@ export EMAIL={{ cloudflare email }}
 ./chief-dns -zone=yourdomain.com -operation=import
 ```
 
-### Syncing with CloudFlare
+#### Syncing with CloudFlare
 
 ``` bash
 export API_KEY={{ cloudflare token }}
