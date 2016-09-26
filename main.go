@@ -17,7 +17,7 @@ import (
 
 type Stats struct {
 	Created int
-	Removed int
+	Deleted int
 	Updated int
 	Elapsed time.Duration
 }
@@ -27,6 +27,7 @@ type ChiefRecord struct {
 	Value  string
 	Type   string
 	TTL    int
+	State  string
 	record *cloudflare.Record
 }
 
@@ -86,7 +87,7 @@ func main() {
 	chiefRecords := []ChiefRecord{}
 	for _, record := range records {
 		tmp := ChiefRecord{Name: record.Name, Value: record.Content,
-			Type: record.Type, TTL: record.TTL, record: record}
+			Type: record.Type, TTL: record.TTL, record: record, State: "present"}
 		chiefRecords = append(chiefRecords, tmp)
 	}
 
@@ -130,6 +131,22 @@ func main() {
 			}
 		}
 
+		// validate state in records
+		validConfig := true
+		for _, r := range localRecords {
+			if r.State == "present" || r.State == "absent" {
+				continue
+			}
+			if r.State != "present" {
+				validConfig = false
+				log.Println("Invalid record state:", r.State, "for", r.Name)
+			}
+		}
+
+		if !validConfig {
+			log.Fatal("Invalid config.")
+		}
+
 		log.Println(len(localRecords), "local records found.")
 
 		for _, r := range localRecords {
@@ -139,7 +156,20 @@ func main() {
 				stats.Created++
 			}
 
-			updated := checkPatch(chiefRecords, r, zone, client, ctx)
+			updated := false
+			deleted := false
+
+			if r.State == "present" {
+				updated = checkPatch(chiefRecords, r, zone, client, ctx)
+			}
+
+			if r.State == "absent" {
+				deleted = checkDelete(chiefRecords, r, zone, client, ctx)
+			}
+
+			if deleted {
+				stats.Deleted++
+			}
 			if updated {
 				stats.Updated++
 			}
@@ -167,6 +197,34 @@ func createRecord(record ChiefRecord, client *cloudflare.Client,
 
 }
 
+func checkDelete(remoteRecords []ChiefRecord, localRecord ChiefRecord,
+	zone *cloudflare.Zone, client *cloudflare.Client, ctx context.Context) bool {
+
+	fqdn := fmt.Sprintf("%s.%s", localRecord.Name, zone.Name)
+	var remoteRecord *ChiefRecord
+
+	for _, r := range remoteRecords {
+		// just check for the name
+		// dont match on value/ttl since that could be getting updated
+		if r.Name == localRecord.Name || fqdn == r.Name {
+			remoteRecord = &r
+			break
+		}
+	}
+
+	if remoteRecord == nil {
+		log.Println("[delete] Cannot find remote record for:", localRecord.Name, "skipping.")
+		return false
+	}
+
+	err := client.Records.Delete(ctx, zone.ID, remoteRecord.record.ID)
+	if err != nil {
+		log.Fatal("Error deleting record:", err)
+	}
+	log.Println("[deleted]", localRecord.Name)
+	return true
+}
+
 func checkPatch(remoteRecords []ChiefRecord, localRecord ChiefRecord,
 	zone *cloudflare.Zone, client *cloudflare.Client, ctx context.Context) bool {
 
@@ -183,7 +241,8 @@ func checkPatch(remoteRecords []ChiefRecord, localRecord ChiefRecord,
 	}
 
 	if remoteRecord == nil {
-		log.Fatal("Cannot find remote record for:", localRecord.Name)
+		log.Println("[patch] Cannot find remote record for:", localRecord.Name)
+		return false
 	}
 
 	patch := false

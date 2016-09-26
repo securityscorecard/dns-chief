@@ -5,6 +5,18 @@
 * [x] CloudFlare Support
 * [ ] Route53 Support
 
+## Example config
+
+*ops.yml*:
+
+``` yaml
+- name: testing.ops.example.com
+  value: 10.10.0.123
+  state: present
+  type: A
+  ttl: 60
+```
+
 ## CloudFlare
 
 ### Usage
