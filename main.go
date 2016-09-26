@@ -19,6 +19,7 @@ type Stats struct {
 	Created int
 	Removed int
 	Updated int
+	Elapsed time.Duration
 }
 
 type ChiefRecord struct {
@@ -30,26 +31,29 @@ type ChiefRecord struct {
 }
 
 func main() {
+	startTime := time.Now()
+	stats := Stats{}
 	client := cloudflare.New(&cloudflare.Options{
 		Email: os.Getenv("EMAIL"),
 		Key:   os.Getenv("API_KEY"),
 	})
-	stats := Stats{}
 
 	var zoneName string
 	var zone *cloudflare.Zone
-	var operation string
+	var cmdSync bool
+	var cmdImport bool
 
 	flag.StringVar(&zoneName, "zone", "", "specify zone to manage")
-	flag.StringVar(&operation, "operation", "", "operation to perform: import (dump CF records to yaml)")
+	flag.BoolVar(&cmdImport, "import", false, "import : dump CF records to yaml")
+	flag.BoolVar(&cmdSync, "sync", false, "sync : run local against remote")
 	flag.Parse()
 
 	if len(zoneName) == 0 {
 		log.Fatal("-zone is required")
 	}
 
-	if len(operation) == 0 {
-		log.Fatal("-operation is required")
+	if cmdSync && cmdImport {
+		log.Fatal("Only one command at a time, either -sync or -import")
 	}
 
 	ctx := context.Background()
@@ -89,7 +93,7 @@ func main() {
 	log.Println(len(chiefRecords), "remote records found.")
 	// end TODO
 
-	if operation == "import" {
+	if cmdImport {
 		out, err := yaml.Marshal(&chiefRecords)
 		if err != nil {
 			log.Fatal(err)
@@ -98,7 +102,7 @@ func main() {
 		log.Println("records imported to chief.yml")
 	}
 
-	if operation == "sync" {
+	if cmdSync {
 		// sync up differences - loop over local, verify in remote,
 		// log msg of missing records in local
 		// if not in remote but in local, add/delete depending on state cmd
@@ -144,6 +148,8 @@ func main() {
 		if len(localRecords) != len(chiefRecords) {
 			log.Println("Consider running -operation=import to sync up differences.")
 		}
+
+		stats.Elapsed = time.Since(startTime)
 
 		log.Printf("%+v\n", stats)
 	}

@@ -14,7 +14,7 @@
 ``` bash
 export API_KEY={{ cloudflare token }}
 export EMAIL={{ cloudflare email }}
-./chief-dns -zone=yourdomain.com -operation=import
+./chief-dns -zone=yourdomain.com -import
 ```
 
 #### Syncing with CloudFlare
@@ -22,7 +22,7 @@ export EMAIL={{ cloudflare email }}
 ``` bash
 export API_KEY={{ cloudflare token }}
 export EMAIL={{ cloudflare email }}
-./chief-dns -zone=yourdomain.com -operation=sync
+./chief-dns -zone=yourdomain.com -sync
 ```
 
 Example output:
