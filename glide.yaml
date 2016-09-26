@@ -1,0 +1,7 @@
+package: github.com/joshrendek/dns-chief
+import:
+- package: github.com/crackcomm/cloudflare
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: gopkg.in/yaml.v2

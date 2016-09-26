@@ -1,0 +1,12 @@
+hash: cb635db5a1ff722c504955f94576bf4176f9226f96fb4419c0b5b122337ad339
+updated: 2016-09-25T23:07:15.117359914-04:00
+imports:
+- name: github.com/crackcomm/cloudflare
+  version: dc358193164414054010e3fafdb6cc8def4eb864
+- name: golang.org/x/net
+  version: 28273ec927bee3bea305f112fc28ceee575ea893
+  subpackages:
+  - context
+- name: gopkg.in/yaml.v2
+  version: 31c299268d302dd0aa9a0dcf765a3d58971ac83f
+devImports: []
