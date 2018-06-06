@@ -151,9 +151,16 @@ func main() {
 
 		for _, r := range localRecords {
 			if !exists(chiefRecords, r, zone) {
-				log.Println("[creating]", r.Name, "(", r.Value, ") doesn't exist in remote.")
-				createRecord(r, client, ctx, zone)
-				stats.Created++
+				if r.State == "present" {
+					log.Println("[creating]", r.Name, "(", r.Value, ") doesn't exist in remote.")
+					createRecord(r, client, ctx, zone)
+					stats.Created++
+				} else if r.State == "absent" {
+					//if the record doesn't exist already, just continue
+					continue
+				} else {
+					log.Println("Invalid record state:", r.State, "for", r.Name)
+				}
 			}
 
 			updated := false
