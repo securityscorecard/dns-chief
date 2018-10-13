@@ -29,6 +29,14 @@ export EMAIL={{ cloudflare email }}
 ./chief-dns -zone=yourdomain.com -import
 ```
 
+or
+```bash
+docker run -v /path/to/files:/app \
+  -e API_KEY= {{ cloudflare token }} \
+  -e EMAIL={{ cloudflare email}} \
+  dns-chief
+```
+
 #### Syncing with CloudFlare
 
 ``` bash
