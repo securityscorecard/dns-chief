@@ -1,12 +1,18 @@
-hash: cb635db5a1ff722c504955f94576bf4176f9226f96fb4419c0b5b122337ad339
-updated: 2016-09-25T23:07:15.117359914-04:00
+hash: 7a590eaa09d4c9f417eb079aa853cad016190fd8039599a39cc0ffbc2f4d8915
+updated: 2018-10-13T12:14:43.425341-04:00
 imports:
-- name: github.com/crackcomm/cloudflare
-  version: dc358193164414054010e3fafdb6cc8def4eb864
+- name: github.com/cloudflare/cloudflare-go
+  version: 1f9007fbecae20711133c60519338c41cef1ffb4
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: golang.org/x/net
   version: 28273ec927bee3bea305f112fc28ceee575ea893
   subpackages:
   - context
+- name: golang.org/x/time
+  version: fbb02b2291d28baffd63558aa44b4b56f178d650
+  subpackages:
+  - rate
 - name: gopkg.in/yaml.v2
-  version: 31c299268d302dd0aa9a0dcf765a3d58971ac83f
-devImports: []
+  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
+testImports: []

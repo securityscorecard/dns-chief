@@ -1,7 +1,5 @@
-package: github.com/joshrendek/dns-chief
+package: github.com/securityscorecard/dns-chief
 import:
-- package: github.com/crackcomm/cloudflare
-- package: golang.org/x/net
-  subpackages:
-  - context
+- package: github.com/cloudflare/cloudflare-go
+  version: ~0.8.5
 - package: gopkg.in/yaml.v2

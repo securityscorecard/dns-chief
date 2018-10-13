@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"fmt"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crackcomm/cloudflare"
-	"golang.org/x/net/context"
+	"github.com/cloudflare/cloudflare-go"
 	"gopkg.in/yaml.v2"
 )
 
@@ -28,16 +26,16 @@ type ChiefRecord struct {
 	Type   string
 	TTL    int
 	State  string
-	record *cloudflare.Record
+	record *cloudflare.DNSRecord
 }
 
 func main() {
 	startTime := time.Now()
 	stats := Stats{}
-	client := cloudflare.New(&cloudflare.Options{
-		Email: os.Getenv("EMAIL"),
-		Key:   os.Getenv("API_KEY"),
-	})
+	client, err := cloudflare.New(os.Getenv("API_KEY"), os.Getenv("EMAIL"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var zoneName string
 	var zone *cloudflare.Zone
@@ -57,10 +55,7 @@ func main() {
 		log.Fatal("Only one command at a time, either -sync or -import")
 	}
 
-	ctx := context.Background()
-	ctx, _ = context.WithTimeout(ctx, time.Second*30)
-
-	zones, err := client.Zones.List(ctx)
+	zones, err := client.ListZones()
 	if err != nil {
 		log.Fatal(err)
 	} else if len(zones) == 0 {
@@ -69,7 +64,7 @@ func main() {
 
 	for _, z := range zones {
 		if z.Name == zoneName {
-			zone = z
+			zone = &z
 		}
 	}
 
@@ -80,14 +75,14 @@ func main() {
 	log.Println("Zone found:", zone.Name)
 
 	// TODO: extract into method for refreshing records
-	records, err := client.Records.List(ctx, zone.ID)
+	records, err := client.DNSRecords(zone.ID, cloudflare.DNSRecord{})
 	if err != nil {
 		log.Fatal(err)
 	}
 	chiefRecords := []ChiefRecord{}
 	for _, record := range records {
 		tmp := ChiefRecord{Name: record.Name, Value: record.Content,
-			Type: record.Type, TTL: record.TTL, record: record, State: "present"}
+			Type: record.Type, TTL: record.TTL, record: &record, State: "present"}
 		chiefRecords = append(chiefRecords, tmp)
 	}
 
@@ -153,7 +148,7 @@ func main() {
 			if !exists(chiefRecords, r, zone) {
 				if r.State == "present" {
 					log.Println("[creating]", r.Name, "(", r.Value, ") doesn't exist in remote.")
-					createRecord(r, client, ctx, zone)
+					createRecord(r, client, zone)
 					stats.Created++
 				} else if r.State == "absent" {
 					//if the record doesn't exist already, just continue
@@ -167,11 +162,11 @@ func main() {
 			deleted := false
 
 			if r.State == "present" {
-				updated = checkPatch(chiefRecords, r, zone, client, ctx)
+				updated = checkPatch(chiefRecords, r, zone, client)
 			}
 
 			if r.State == "absent" {
-				deleted = checkDelete(chiefRecords, r, zone, client, ctx)
+				deleted = checkDelete(chiefRecords, r, zone, client)
 			}
 
 			if deleted {
@@ -192,12 +187,11 @@ func main() {
 	}
 }
 
-func createRecord(record ChiefRecord, client *cloudflare.Client,
-	ctx context.Context, zone *cloudflare.Zone) {
+func createRecord(record ChiefRecord, client *cloudflare.API, zone *cloudflare.Zone) {
 
-	cfRecord := &cloudflare.Record{Type: record.Type, Name: record.Name,
+	cfRecord := &cloudflare.DNSRecord{Type: record.Type, Name: record.Name,
 		Content: record.Value, TTL: record.TTL, ZoneID: zone.ID, ZoneName: zone.Name}
-	err := client.Records.Create(ctx, cfRecord)
+	_, err := client.CreateDNSRecord(zone.ID, *cfRecord)
 	if err != nil {
 		log.Fatal("Error creating record: ", err)
 	}
@@ -205,7 +199,7 @@ func createRecord(record ChiefRecord, client *cloudflare.Client,
 }
 
 func checkDelete(remoteRecords []ChiefRecord, localRecord ChiefRecord,
-	zone *cloudflare.Zone, client *cloudflare.Client, ctx context.Context) bool {
+	zone *cloudflare.Zone, client *cloudflare.API) bool {
 
 	fqdn := fmt.Sprintf("%s.%s", localRecord.Name, zone.Name)
 	var remoteRecord *ChiefRecord
@@ -224,7 +218,7 @@ func checkDelete(remoteRecords []ChiefRecord, localRecord ChiefRecord,
 		return false
 	}
 
-	err := client.Records.Delete(ctx, zone.ID, remoteRecord.record.ID)
+	err := client.DeleteDNSRecord(zone.ID, remoteRecord.record.ID)
 	if err != nil {
 		log.Fatal("Error deleting record:", err)
 	}
@@ -233,7 +227,7 @@ func checkDelete(remoteRecords []ChiefRecord, localRecord ChiefRecord,
 }
 
 func checkPatch(remoteRecords []ChiefRecord, localRecord ChiefRecord,
-	zone *cloudflare.Zone, client *cloudflare.Client, ctx context.Context) bool {
+	zone *cloudflare.Zone, client *cloudflare.API) bool {
 
 	fqdn := fmt.Sprintf("%s.%s", localRecord.Name, zone.Name)
 	var remoteRecord *ChiefRecord
@@ -268,9 +262,9 @@ func checkPatch(remoteRecords []ChiefRecord, localRecord ChiefRecord,
 	}
 
 	if patch {
-		cfRecord := &cloudflare.Record{Type: localRecord.Type, Name: localRecord.Name, ID: remoteRecord.record.ID,
+		cfRecord := &cloudflare.DNSRecord{Type: localRecord.Type, Name: localRecord.Name, ID: remoteRecord.record.ID,
 			Content: localRecord.Value, TTL: localRecord.TTL, ZoneID: zone.ID, ZoneName: zone.Name}
-		err := client.Records.Patch(ctx, cfRecord)
+		err := client.UpdateDNSRecord(zone.ID, remoteRecord.record.ID, *cfRecord)
 		if err != nil {
 			log.Fatal("Error patching record:", err)
 		}
